@@ -1,10 +1,11 @@
 from models import Base, User
-from flask import Flask, jsonify, request, url_for, abort
+from flask import Flask, jsonify, g, request, url_for, abort
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy import create_engine
 
-from flask import Flask
+from flask_httpauth import HTTPBasicAuth
+auth = HTTPBasicAuth()
 
 engine = create_engine('sqlite:///users.db')
 
@@ -12,6 +13,18 @@ Base.metadata.bind = engine
 DBSession = sessionmaker(bind=engine)
 session = DBSession()
 app = Flask(__name__)
+
+
+@auth.verify_password
+def verify_password(username, password):
+    print('------- verify_password -------')
+    print('username: %s\npassword: %s' % (username, password))
+    user = session.query(User).filter_by(username=username).first()
+
+    if not user or not user.verify_password(password):
+        return False
+    g.user = user
+    return True
 
 
 @app.route('/api/users', methods=['POST'])
@@ -38,6 +51,13 @@ def get_user(id):
     if not user:
         abort(400)
     return jsonify({'username': user.username})
+
+
+@app.route('/protected_resource')
+@auth.login_required
+def get_resource():
+    print('------- /protected_resource - GET -------')
+    return jsonify({'data': 'Hello, %s' % g.user.username})
 
 
 if __name__ == '__main__':

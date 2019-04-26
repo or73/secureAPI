@@ -5,6 +5,7 @@ from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy import create_engine
 from oauth2client.client import flow_from_clientsecrets
 from oauth2client.client import FlowExchangeError
+from redis import Redis
 
 from flask_httpauth import HTTPBasicAuth   # python 3
 # from flask.ext.httpauth import HTTPBasicAuth   # python 2.7
@@ -20,8 +21,15 @@ engine = create_engine('sqlite:///data.db')
 Base.metadata.bind = engine
 DBSession = sessionmaker(bind=engine)
 session = DBSession()
+
+redis = Redis()
 app = Flask(__name__)
 CLIENT_ID = json.loads(open('client_secrets.json', 'r').read())['web']['client_id']
+
+
+@app.route('/rate-limited')
+def index():
+    return jsonify({'response': 'This is a rate limited response'})
 
 
 @auth.verify_password
@@ -46,7 +54,7 @@ def verify_password(username_or_token, password):
 
 @app.route('/clientOAuth')
 def start():
-    return render_template('clientOAuth.html')
+    return render_template('clientOAuth.html', client_id=CLIENT_ID)
 
 
 @app.route('/oauth/<provider>', methods=['POST'])
